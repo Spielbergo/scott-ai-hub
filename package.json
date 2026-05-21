@@ -3,10 +3,10 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev":      "next dev",
-    "build":    "next build",
-    "start":    "next start",
-    "agent":    "node -r dotenv/config scripts/runAgent.js dotenv_config_path=.env.local",
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "agent": "node -r dotenv/config scripts/runAgent.js dotenv_config_path=.env.local",
     "pipeline": "node -r dotenv/config scripts/fullPipeline.js dotenv_config_path=.env.local"
   },
   "dependencies": {
@@ -14,6 +14,7 @@
     "axios": "^1.7.2",
     "cheerio": "^1.0.0",
     "dotenv": "^16.4.5",
+    "firebase": "^12.13.0",
     "firebase-admin": "^13.10.0",
     "next": "14.2.3",
     "playwright": "^1.60.0",
