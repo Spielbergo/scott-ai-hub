@@ -580,8 +580,9 @@ function RunHistory({ runs }) {
 
 export default function MarketTrendsPage() {
   const [data,    setData]    = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [error,   setError]   = useState(null);
+  const [loading,   setLoading]   = useState(false);
+  const [error,     setError]     = useState(null);
+  const [triggered, setTriggered] = useState(false);
   const [history, setHistory] = useState([]);
 
   const fetchResults = useCallback(async () => {
@@ -613,12 +614,12 @@ export default function MarketTrendsPage() {
   const handleRunAgent = async () => {
     setLoading(true);
     setError(null);
+    setTriggered(false);
     try {
       const res  = await fetch("/api/run-agent", { method: "POST" });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || json.message || "Failed to trigger agent");
-      // Pipeline runs on GitHub Actions — results will appear after it finishes (~2 min)
-      setError("Pipeline triggered — results will update in ~2 minutes. Refresh the page then.");
+      setTriggered(true);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -667,6 +668,17 @@ export default function MarketTrendsPage() {
 
         {/* Agent config panel */}
         <AgentConfigPanel agentId="market-trends" />
+
+        {/* Triggered banner */}
+        {triggered && (
+          <div className="bg-emerald-900/30 border border-emerald-700 rounded-xl p-4 text-emerald-300 text-sm flex items-center gap-3">
+            <span className="text-lg">✓</span>
+            <div>
+              <p className="font-semibold">Pipeline triggered successfully</p>
+              <p className="text-emerald-400 mt-0.5">The agent is running on GitHub Actions (~2 min). Refresh the page when it&apos;s done to see updated results.</p>
+            </div>
+          </div>
+        )}
 
         {/* Error banner */}
         {error && (
