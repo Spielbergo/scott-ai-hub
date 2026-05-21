@@ -614,11 +614,11 @@ export default function MarketTrendsPage() {
     setLoading(true);
     setError(null);
     try {
-      const res  = await fetch("/api/run-agent", { method:"POST" });
+      const res  = await fetch("/api/run-agent", { method: "POST" });
       const json = await res.json();
-      if (!res.ok) throw new Error(json.message || "Agent run failed");
-      setData(json);
-      fetchHistory();
+      if (!res.ok) throw new Error(json.error || json.message || "Failed to trigger agent");
+      // Pipeline runs on GitHub Actions — results will appear after it finishes (~2 min)
+      setError("Pipeline triggered — results will update in ~2 minutes. Refresh the page then.");
     } catch (err) {
       setError(err.message);
     } finally {
