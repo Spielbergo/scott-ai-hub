@@ -579,19 +579,22 @@ function RunHistory({ runs }) {
 // ─── Market Trends Page ───────────────────────────────────────────────────────
 
 export default function MarketTrendsPage() {
-  const [data,    setData]    = useState(null);
+  const [data,      setData]      = useState(null);
   const [loading,   setLoading]   = useState(false);
   const [error,     setError]     = useState(null);
   const [triggered, setTriggered] = useState(false);
-  const [history, setHistory] = useState([]);
+  const [polling,   setPolling]   = useState(false);
+  const [history,   setHistory]   = useState([]);
 
   const fetchResults = useCallback(async () => {
     try {
       const res  = await fetch("/api/run-agent");
       const json = await res.json();
       setData(json);
+      return json;
     } catch (err) {
       console.error("Failed to fetch results:", err);
+      return null;
     }
   }, []);
 
@@ -620,6 +623,27 @@ export default function MarketTrendsPage() {
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || json.message || "Failed to trigger agent");
       setTriggered(true);
+
+      // Poll every 10 s for up to 3 minutes for new results
+      const currentRunAt = data?.runAt || null;
+      setPolling(true);
+      const INTERVAL = 10_000;
+      const MAX_ATTEMPTS = 18; // 3 min
+      let attempts = 0;
+      const poll = setInterval(async () => {
+        attempts++;
+        const fresh = await fetchResults();
+        const newRunAt = fresh?.runAt || null;
+        if (newRunAt && newRunAt !== currentRunAt) {
+          clearInterval(poll);
+          setPolling(false);
+          setTriggered(false);
+          fetchHistory();
+        } else if (attempts >= MAX_ATTEMPTS) {
+          clearInterval(poll);
+          setPolling(false);
+        }
+      }, INTERVAL);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -669,13 +693,17 @@ export default function MarketTrendsPage() {
         {/* Agent config panel */}
         <AgentConfigPanel agentId="market-trends" />
 
-        {/* Triggered banner */}
+        {/* Triggered / polling banner */}
         {triggered && (
           <div className="bg-emerald-900/30 border border-emerald-700 rounded-xl p-4 text-emerald-300 text-sm flex items-center gap-3">
-            <span className="text-lg">✓</span>
+            {polling ? <Spinner /> : <span className="text-lg">✓</span>}
             <div>
-              <p className="font-semibold">Pipeline triggered successfully</p>
-              <p className="text-emerald-400 mt-0.5">The agent is running on GitHub Actions (~2 min). Refresh the page when it&apos;s done to see updated results.</p>
+              <p className="font-semibold">{polling ? "Pipeline running on GitHub Actions…" : "Pipeline triggered"}</p>
+              <p className="text-emerald-400 mt-0.5">
+                {polling
+                  ? "Checking for new results every 10 seconds. This page will update automatically."
+                  : "Results updated successfully."}
+              </p>
             </div>
           </div>
         )}
