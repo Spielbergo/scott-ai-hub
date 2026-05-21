@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import UserMenu from "../components/UserMenu";
 
 // ─── Static agent registry ────────────────────────────────────────────────────
 
@@ -207,6 +208,7 @@ export default function HubPage() {
             <h1 className="text-xl font-bold text-white tracking-tight">Scott AI Hub</h1>
             <p className="text-xs text-gray-500 mt-0.5">{AGENTS.length} agent{AGENTS.length !== 1 ? "s" : ""} registered</p>
           </div>
+          <UserMenu />
         </div>
       </header>
 

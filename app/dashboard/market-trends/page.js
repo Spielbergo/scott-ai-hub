@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
+import UserMenu from "../../components/UserMenu";
 
 // ─── Schedule helpers ─────────────────────────────────────────────────────────
 
@@ -657,6 +658,7 @@ export default function MarketTrendsPage() {
             >
               {loading ? <><Spinner />Running…</> : <><span>▶</span> Run Agent</>}
             </button>
+            <UserMenu />
           </div>
         </div>
       </header>
