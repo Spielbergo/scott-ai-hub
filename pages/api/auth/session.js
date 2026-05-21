@@ -13,6 +13,7 @@ getDb();
 
 const SESSION_COOKIE_NAME = '__session';
 const FIVE_DAYS_MS        = 60 * 60 * 24 * 5 * 1000;
+const ALLOWED_EMAILS      = ['scott@yopie.ca', 'mike@yopie.ca'];
 
 export default async function handler(req, res) {
   if (req.method === 'POST') {
@@ -20,6 +21,12 @@ export default async function handler(req, res) {
     if (!idToken) return res.status(400).json({ error: 'idToken required' });
 
     try {
+      // Verify the token and check the email before issuing a session cookie
+      const decoded = await getAuth().verifyIdToken(idToken);
+      if (!ALLOWED_EMAILS.includes((decoded.email || '').toLowerCase())) {
+        return res.status(403).json({ error: 'Access denied.' });
+      }
+
       const sessionCookie = await getAuth().createSessionCookie(idToken, {
         expiresIn: FIVE_DAYS_MS,
       });

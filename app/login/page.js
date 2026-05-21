@@ -20,6 +20,7 @@ async function createSession(user) {
   });
   if (!res.ok) {
     const { error } = await res.json().catch(() => ({}));
+    if (res.status === 403) throw new Error("Your account is not authorised to access this app.");
     throw new Error(error || "Session creation failed");
   }
 }
