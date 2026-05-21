@@ -138,14 +138,21 @@ async function main() {
         ? 'success'
         : 'partial';
 
+  // Merge full city results (stats, aiContent, etc.) with pipeline summary fields
+  const fullCities = results.cities.map((cityResult) => {
+    const summary = cityRecords.find((r) => r.city === cityResult.city) || {};
+    return { ...cityResult, wpStatus: summary.wpStatus || null };
+  });
+
   const runRecord = {
     agent:        'market-trends',
     triggeredBy,
+    runAt:        new Date().toISOString(),
     startedAt,
     completedAt:  new Date().toISOString(),
     status:       overallStatus,
     summary:      `${pushOkCount}/${TARGETS.length} cities pushed to WordPress`,
-    cities:       cityRecords,
+    cities:       fullCities,
   };
 
   try {

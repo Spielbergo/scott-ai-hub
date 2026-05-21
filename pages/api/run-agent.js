@@ -17,7 +17,7 @@ export default async function handler(req, res) {
   if (req.method === 'GET') {
     const { getRecentRuns } = require('../../lib/runHistory');
     try {
-      const runs = await getRecentRuns('market-trends', 1);
+      const runs = await getRecentRuns(1);
       if (!runs || runs.length === 0) {
         return res.status(200).json({ status: 'no-data', cities: [] });
       }
