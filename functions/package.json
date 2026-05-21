@@ -1,0 +1,29 @@
+{
+  "name": "scott-ai-hub-functions",
+  "description": "Scott AI Hub — Firebase Cloud Functions (Market Trend Agent and future agents)",
+  "scripts": {
+    "lint": "eslint .",
+    "serve": "firebase emulators:start --only functions,firestore,storage",
+    "shell": "firebase functions:shell",
+    "start": "npm run shell",
+    "deploy": "firebase deploy --only functions",
+    "logs": "firebase functions:log"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "main": "index.js",
+  "dependencies": {
+    "axios": "^1.7.2",
+    "cheerio": "^1.0.0",
+    "firebase-admin": "^12.1.0",
+    "firebase-functions": "^5.1.0",
+    "groq-sdk": "^0.4.0"
+  },
+  "devDependencies": {
+    "eslint": "^8.15.0",
+    "eslint-config-google": "^0.14.0",
+    "firebase-tools": "^13.10.2"
+  },
+  "private": true
+}

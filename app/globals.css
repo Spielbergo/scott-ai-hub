@@ -1,0 +1,6 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Smooth transitions for loading states */
+* { transition-property: opacity, background-color; transition-duration: 150ms; }
