@@ -15,7 +15,7 @@ export default async function handler(req, res) {
 
   const { TARGETS } = require("../../lib/agent");
   const { updateWordPressPage, isConfigured } = require("../../lib/wordpress");
-  const { detectAnomalies, hasBlockingAnomalies } = require("../../lib/anomaly");
+  const { detectAnomalies } = require("../../lib/anomaly");
   const { getRecentRuns, loadCityState, saveCityState, saveRun } = require("../../lib/runHistory");
 
   if (!isConfigured()) {
@@ -24,23 +24,26 @@ export default async function handler(req, res) {
     });
   }
 
-  // ── Load latest run from Firestore ───────────────────────────────────────
+  // ── Load latest run from Firestore that contains this city ───────────────
+  // Search the last 5 runs so a single-city manual-push record doesn't shadow
+  // the full pipeline run.
   let cityResult;
   let runAt;
   try {
-    const runs = await getRecentRuns(1);
-    const latestRun = runs?.[0];
-    if (!latestRun) {
+    const runs = await getRecentRuns(5);
+    if (!runs?.length) {
       return res.status(404).json({ error: "No agent results found. Run the agent first." });
     }
-    runAt = latestRun.runAt;
-    cityResult = latestRun.cities?.find((c) => c.city === city);
+    for (const run of runs) {
+      const found = run.cities?.find((c) => c.city === city && c.stats && Object.keys(c.stats).length > 0);
+      if (found) { cityResult = found; runAt = run.runAt; break; }
+    }
   } catch (err) {
     return res.status(500).json({ error: `Failed to load results from Firestore: ${err.message}` });
   }
 
   if (!cityResult) {
-    return res.status(404).json({ error: `City "${city}" not found in last results.` });
+    return res.status(404).json({ error: `City "${city}" not found in recent results. Run the agent first.` });
   }
   if (!cityResult.stats || Object.keys(cityResult.stats).length === 0) {
     return res.status(422).json({ error: `No stats available for "${city}". Re-run the agent.` });
@@ -64,14 +67,9 @@ export default async function handler(req, res) {
   }
 
   const anomalies = detectAnomalies(cityResult.stats, prevStats);
-  const blocking  = hasBlockingAnomalies(anomalies);
-
-  if (blocking) {
-    return res.status(422).json({
-      error: `Push blocked by anomaly detection: ${anomalies.filter(a => a.severity === 'critical').map(a => a.message).join('; ')}`,
-      anomalies,
-    });
-  }
+  // Manual dashboard pushes don't hard-block on anomalies — the user can
+  // see the data and is explicitly choosing to push.  The automated pipeline
+  // is the right place to enforce the anomaly gate.
 
   // ── Push to WordPress ────────────────────────────────────────────────────
   // Note: priceTables / inventoryTables are stripped before Firestore save
