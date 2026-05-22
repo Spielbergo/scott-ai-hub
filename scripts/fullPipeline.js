@@ -138,10 +138,14 @@ async function main() {
         ? 'success'
         : 'partial';
 
-  // Merge full city results (stats, aiContent, etc.) with pipeline summary fields
+  // Merge full city results with pipeline summary fields.
+  // Strip large HTML fields (priceTables, inventoryTables) — they're only
+  // needed for the WordPress push which already happened, and would push
+  // the Firestore document over the 1MB limit.
   const fullCities = results.cities.map((cityResult) => {
     const summary = cityRecords.find((r) => r.city === cityResult.city) || {};
-    return { ...cityResult, wpStatus: summary.wpStatus || null };
+    const { priceTables, inventoryTables, rawStatCount, ...rest } = cityResult;
+    return { ...rest, wpStatus: summary.wpStatus || null };
   });
 
   const runRecord = {
@@ -156,6 +160,8 @@ async function main() {
   };
 
   try {
+    const docSize = JSON.stringify(runRecord).length;
+    console.log(`[pipeline] Saving run record to Firestore (~${(docSize / 1024).toFixed(1)} KB)`);
     const runId = await saveRun(runRecord);
     console.log(`\n[pipeline] Run saved to Firestore (id: ${runId})`);
   } catch (err) {
