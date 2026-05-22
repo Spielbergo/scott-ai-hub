@@ -165,7 +165,8 @@ async function main() {
     const runId = await saveRun(runRecord);
     console.log(`\n[pipeline] Run saved to Firestore (id: ${runId})`);
   } catch (err) {
-    console.error(`[pipeline] ⚠ Firestore save failed: ${err.message}`);
+    console.error(`[pipeline] ✗ Firestore save failed: ${err.message}`);
+    process.exitCode = 1; // mark pipeline as failed in GitHub Actions
   }
 
   // ── Step 5: Email alert if anything went wrong (or always in CI) ─────────
