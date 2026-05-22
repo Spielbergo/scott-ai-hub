@@ -25,20 +25,16 @@ jobs:
       - name: Validate required secrets
         run: |
           missing=""
-          [ -z "$FIREBASE_PROJECT_ID" ]   && missing="$missing FIREBASE_PROJECT_ID"
-          [ -z "$FIREBASE_CLIENT_EMAIL" ] && missing="$missing FIREBASE_CLIENT_EMAIL"
-          [ -z "$FIREBASE_PRIVATE_KEY" ]  && missing="$missing FIREBASE_PRIVATE_KEY"
-          [ -z "$GEMINI_API_KEY" ]        && missing="$missing GEMINI_API_KEY"
+          [ -z "$FIREBASE_SERVICE_ACCOUNT_BASE64" ] && missing="$missing FIREBASE_SERVICE_ACCOUNT_BASE64"
+          [ -z "$GEMINI_API_KEY" ]                  && missing="$missing GEMINI_API_KEY"
           if [ -n "$missing" ]; then
             echo "❌ Missing required secrets:$missing"
             exit 1
           fi
           echo "✅ All required secrets present"
         env:
-          FIREBASE_PROJECT_ID:   ${{ secrets.FIREBASE_PROJECT_ID }}
-          FIREBASE_CLIENT_EMAIL: ${{ secrets.FIREBASE_CLIENT_EMAIL }}
-          FIREBASE_PRIVATE_KEY:  ${{ secrets.FIREBASE_PRIVATE_KEY }}
-          GEMINI_API_KEY:        ${{ secrets.GEMINI_API_KEY }}
+          FIREBASE_SERVICE_ACCOUNT_BASE64: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_BASE64 }}
+          GEMINI_API_KEY:                  ${{ secrets.GEMINI_API_KEY }}
 
       - uses: actions/setup-node@v4
         with:
@@ -55,9 +51,7 @@ jobs:
         env:
           TRIGGERED_BY: ${{ github.event.inputs.triggered_by || 'scheduled' }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-          FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
-          FIREBASE_CLIENT_EMAIL: ${{ secrets.FIREBASE_CLIENT_EMAIL }}
-          FIREBASE_PRIVATE_KEY: ${{ secrets.FIREBASE_PRIVATE_KEY }}
+          FIREBASE_SERVICE_ACCOUNT_BASE64: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_BASE64 }}
           WP_BASE_URL: ${{ secrets.WP_BASE_URL }}
           WP_USERNAME: ${{ secrets.WP_USERNAME }}
           WP_APP_PASSWORD: ${{ secrets.WP_APP_PASSWORD }}
