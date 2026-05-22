@@ -1,7 +1,6 @@
 /**
  * pages/api/push-to-wordpress.js
- * POST { city: "Caledon" }  →  reads last results.json for that city and pushes to WP.
- * Also runs anomaly detection and records the result to Firestore.
+ * POST { city: "Caledon" }  →  reads latest run from Firestore for that city and pushes to WP.
  */
 
 export default async function handler(req, res) {
@@ -14,9 +13,10 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: "city is required" });
   }
 
-  const { readLastResults, TARGETS } = require("../../lib/agent");
+  const { TARGETS } = require("../../lib/agent");
   const { updateWordPressPage, isConfigured } = require("../../lib/wordpress");
   const { detectAnomalies, hasBlockingAnomalies } = require("../../lib/anomaly");
+  const { getRecentRuns, loadCityState, saveCityState, saveRun } = require("../../lib/runHistory");
 
   if (!isConfigured()) {
     return res.status(503).json({
@@ -24,12 +24,21 @@ export default async function handler(req, res) {
     });
   }
 
-  const results = readLastResults();
-  if (!results) {
-    return res.status(404).json({ error: "No agent results found. Run the agent first." });
+  // ── Load latest run from Firestore ───────────────────────────────────────
+  let cityResult;
+  let runAt;
+  try {
+    const runs = await getRecentRuns(1);
+    const latestRun = runs?.[0];
+    if (!latestRun) {
+      return res.status(404).json({ error: "No agent results found. Run the agent first." });
+    }
+    runAt = latestRun.runAt;
+    cityResult = latestRun.cities?.find((c) => c.city === city);
+  } catch (err) {
+    return res.status(500).json({ error: `Failed to load results from Firestore: ${err.message}` });
   }
 
-  const cityResult = results.cities.find((c) => c.city === city);
   if (!cityResult) {
     return res.status(404).json({ error: `City "${city}" not found in last results.` });
   }
@@ -41,20 +50,17 @@ export default async function handler(req, res) {
   const pageId = target && process.env[target.wpPageIdEnvVar];
   if (!pageId) {
     return res.status(503).json({
-      error: `WordPress page ID not set (${target?.wpPageIdEnvVar} missing from .env.local)`,
+      error: `WordPress page ID not set (${target?.wpPageIdEnvVar} missing from env)`,
     });
   }
 
   // ── Anomaly detection ────────────────────────────────────────────────────
   let prevStats = null;
-  if (process.env.FIREBASE_PROJECT_ID) {
-    try {
-      const { loadCityState } = require("../../lib/runHistory");
-      const state = await loadCityState(city);
-      prevStats = state?.lastGoodStats ?? null;
-    } catch {
-      // Firestore unavailable — proceed without comparison
-    }
+  try {
+    const state = await loadCityState(city);
+    prevStats = state?.lastGoodStats ?? null;
+  } catch {
+    // Firestore unavailable — proceed without comparison
   }
 
   const anomalies = detectAnomalies(cityResult.stats, prevStats);
@@ -68,17 +74,12 @@ export default async function handler(req, res) {
   }
 
   // ── Push to WordPress ────────────────────────────────────────────────────
+  // Note: priceTables / inventoryTables are stripped before Firestore save
+  // to stay under the 1MB limit, so we pass null here.
   let wpStatus = "updated";
   try {
     const dateRange = cityResult.stats.dateRange || "";
-    await updateWordPressPage(
-      pageId,
-      city,
-      cityResult.stats,
-      dateRange,
-      cityResult.priceTables    || null,
-      cityResult.inventoryTables || null
-    );
+    await updateWordPressPage(pageId, city, cityResult.stats, dateRange, null, null);
   } catch (err) {
     wpStatus = "error";
     console.error(`[push-to-wordpress] ${city}: ${err.message}`);
@@ -86,29 +87,26 @@ export default async function handler(req, res) {
   }
 
   // ── Record result to Firestore (best-effort) ─────────────────────────────
-  if (process.env.FIREBASE_PROJECT_ID) {
-    try {
-      const { saveRun, saveCityState } = require("../../lib/runHistory");
-      await saveCityState(city, cityResult.stats);
-      await saveRun({
-        agent:       "market-trends",
-        triggeredBy: "dashboard",
-        startedAt:   results.runAt,
-        completedAt: new Date().toISOString(),
-        status:      "success",
-        summary:     `Manual push for ${city}`,
-        cities: [{
-          city,
-          status:      cityResult.status,
-          wpStatus,
-          avgSalePrice: cityResult.stats?.avgSalePrice ?? null,
-          anomalies,
-          error:        null,
-        }],
-      });
-    } catch (err) {
-      console.warn(`[push-to-wordpress] Firestore record failed: ${err.message}`);
-    }
+  try {
+    await saveCityState(city, cityResult.stats);
+    await saveRun({
+      agent:       "market-trends",
+      triggeredBy: "dashboard-manual",
+      startedAt:   runAt,
+      completedAt: new Date().toISOString(),
+      status:      "success",
+      summary:     `Manual WP push for ${city}`,
+      cities: [{
+        city,
+        status:      cityResult.status,
+        wpStatus,
+        avgSalePrice: cityResult.stats?.avgSalePrice ?? null,
+        anomalies,
+        error:        null,
+      }],
+    });
+  } catch (err) {
+    console.warn(`[push-to-wordpress] Firestore record failed: ${err.message}`);
   }
 
   return res.status(200).json({ ok: true, city, pageId, anomalies });
